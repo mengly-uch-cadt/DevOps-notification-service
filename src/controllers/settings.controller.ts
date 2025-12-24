@@ -45,9 +45,9 @@ export const getBySlugKey = async (req: Request, res: Response, next: NextFuncti
 
 export const update = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (!(await baseService.findById(M, id))) throw new AppError('Not found', 404);
-    sendSuccess(res, await baseService.update(M, id, req.body));
+    const setting = await baseService.findByGlobalId(M, req.params.global_id);
+    if (!setting) throw new AppError('Not found', 404);
+    sendSuccess(res, await baseService.update(M, (setting as any).id, req.body));
   } catch (error) {
     next(error);
   }
@@ -67,9 +67,9 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 
 export const deleteById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (!(await baseService.findById(M, id))) throw new AppError('Not found', 404);
-    await baseService.delete(M, id);
+    const setting = await baseService.findByGlobalId(M, req.params.global_id);
+    if (!setting) throw new AppError('Not found', 404);
+    await baseService.delete(M, (setting as any).id);
     sendSuccess(res, null);
   } catch (error) {
     next(error);

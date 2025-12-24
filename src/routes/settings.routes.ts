@@ -13,10 +13,9 @@ const router = Router();
 
 router.post('/', validate(createSettingSchema), request.createRequest, controller.create);
 router.get('/', validate(paginationQuerySchema), request.paginationRequest, controller.getAll);
-router.get('/id/:id', request.idRequest, controller.getById);
-router.get('/global/:global_id', request.globalIdRequest, controller.getByGlobalId);
-router.get('/:slug/:key', validate(getBySlugKeySchema), request.slugKeyRequest, controller.getBySlugKey);
-router.put('/:id', validate(updateSettingSchema), request.updateRequest, controller.update);
-router.delete('/:id', request.idRequest, controller.deleteById);
+router.get('/:global_id', request.globalIdRequest, controller.getByGlobalId);
+router.get('/slug/:slug/:key', validate(getBySlugKeySchema), request.slugKeyRequest, controller.getBySlugKey);
+router.put('/:global_id', validate(updateSettingSchema), request.updateRequest, controller.update);
+router.delete('/:global_id', request.idRequest, controller.deleteById);
 
 export default router;

@@ -26,8 +26,8 @@ export class BaseService {
     return await model.findUnique({ where: { global_id } });
   }
 
-  async findOne<T>(model: any, where: any): Promise<T | null> {
-    return await model.findUnique({ where });
+  async findOne<T>(model: any, where: any, options?: any): Promise<T | null> {
+    return await model.findUnique({ where, ...options });
   }
 
   async findMany<T>(model: any, options?: any): Promise<T[]> {

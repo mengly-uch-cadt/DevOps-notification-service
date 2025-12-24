@@ -12,7 +12,7 @@ model accesses {
   id             Int      @id @default(autoincrement())
   global_id      String   @unique(map: "global_id") @db.VarChar(36)
   allow_endpoint String   @db.VarChar(255)
-  token          String   @unique(map: "token") @db.Char(64)
+  token          String   @unique(map: "token") @db.VarChar(255)
   created_at     DateTime @db.DateTime(0)
   updated_at     DateTime @db.DateTime(0)
 
