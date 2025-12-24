@@ -6,6 +6,9 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
+
+# Copy Prisma schema before generating client
+COPY prisma ./prisma
 RUN npx prisma generate
 
 
