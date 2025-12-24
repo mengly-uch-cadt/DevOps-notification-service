@@ -47,6 +47,26 @@ export class AccessesService extends BaseService {
   async getAccessByToken(token: string) {
     return await this.findOne(this.prisma.accesses, { token });
   }
+
+  async validateBasicAuth(allow_endpoint: string, token: string): Promise<boolean> {
+    const access = await this.findOne(this.prisma.accesses, {
+      allow_endpoint,
+      token,
+    });
+    return !!access;
+  }
+
+  async isAllowedOrigin(origin: string): Promise<boolean> {
+    const access = await this.findOne(this.prisma.accesses, {
+      allow_endpoint: origin,
+    });
+    return !!access;
+  }
 }
 
 export const accessesService = new AccessesService();
+
+// Export standalone function for CORS
+export async function isAllowedOrigin(origin: string): Promise<boolean> {
+  return accessesService.isAllowedOrigin(origin);
+}
