@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { notificationsService } from '../services/notifications.service';
+import { telegramService } from '../services/telegram.service';
 import { sendSuccess, sendError } from '../utils/response';
 
 export class NotificationsController {
@@ -7,8 +8,19 @@ export class NotificationsController {
     try {
       req.body.status = 'processing';
       let notification = await notificationsService.createNotification(req.body);
-      // update the status to 'success' after creation using global_id
-      notification = await notificationsService.updateNotificationByGlobalId((notification as any).global_id, { status: 'success' });
+
+      // Send notification to Telegram group
+      const telegramStatus = await telegramService.sendNotification({
+        title: req.body.title,
+        body: req.body.body,
+      });
+
+      // Update the status based on Telegram sending result
+      notification = await notificationsService.updateNotificationByGlobalId(
+        (notification as any).global_id,
+        { status: telegramStatus }
+      );
+
       sendSuccess(res, notification, 'Notification created', 201);
     } catch (error: any) {
       // if have error during creation, log error and set status to 'failed' using global_id if available
