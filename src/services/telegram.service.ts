@@ -53,7 +53,7 @@ export class TelegramService extends BaseService {
         }),
       });
 
-      const result = await response.json();
+      const result: any = await response.json();
 
       if (!response.ok) {
         console.error('Telegram API error:', result);
