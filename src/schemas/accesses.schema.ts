@@ -2,12 +2,10 @@ import { z } from 'zod';
 
 export const createAccessSchema = z.object({
   allow_endpoint: z.string().min(1, 'Endpoint is required').max(255),
-  token: z.string().length(64, 'Token must be 64 characters'),
 });
 
 export const updateAccessSchema = z.object({
   allow_endpoint: z.string().min(1).max(255).optional(),
-  token: z.string().length(64).optional(),
 });
 
 export type CreateAccessInput = z.infer<typeof createAccessSchema>;

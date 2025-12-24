@@ -9,13 +9,23 @@ export class BaseService {
 
   async create<T>(model: any, data: any): Promise<T> {
     const now = new Date();
-    return await model.create({
-      data: {
-        ...data,
-        created_at: now,
-        updated_at: now,
+    // Always override created_at and updated_at with current date
+    const { created_at, updated_at, ...rest } = data || {};
+    try {
+      return await model.create({
+        data: {
+          ...rest,
+          created_at: now,
+          updated_at: now,
+        }
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        // Prisma unique constraint violation
+        throw new Error('Record already exists');
       }
-    });
+      throw error;
+    }
   }
 
   async findById<T>(model: any, id: number): Promise<T | null> {

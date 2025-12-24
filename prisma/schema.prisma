@@ -19,18 +19,6 @@ model accesses {
   @@index([allow_endpoint], map: "accesses_index_4")
 }
 
-model admins {
-  id         Int      @id @default(autoincrement())
-  global_id  String   @unique(map: "global_id") @db.VarChar(36)
-  user_id    Int
-  name       String   @db.VarChar(255)
-  created_at DateTime @db.DateTime(0)
-  updated_at DateTime @db.DateTime(0)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "admins_ibfk_1")
-
-  @@index([user_id], map: "admins_index_0")
-}
-
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model notifications {
   id         Int      @id @default(autoincrement())
@@ -38,7 +26,7 @@ model notifications {
   user_id    Int
   title      String   @db.VarChar(255)
   body       String   @db.Text
-  status     String   @db.VarChar(10)
+  status     String   @default("") @db.VarChar(10)
   created_at DateTime @db.DateTime(0)
   updated_at DateTime @db.DateTime(0)
   users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "notifications_ibfk_1")
@@ -68,6 +56,5 @@ model users {
   hash          String          @db.VarChar(255)
   created_at    DateTime        @db.DateTime(0)
   updated_at    DateTime        @db.DateTime(0)
-  admins        admins[]
   notifications notifications[]
 }
