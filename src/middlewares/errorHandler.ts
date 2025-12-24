@@ -14,12 +14,18 @@ export class AppError extends Error {
 
 export const errorHandler = (
   err: Error | AppError,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   if (err instanceof AppError) {
     sendError(res, err.message, err.statusCode);
+    return;
+  }
+
+  // Handle Prisma errors
+  if (err.message.includes('Unique constraint failed')) {
+    sendError(res, 'Already exists', 409);
     return;
   }
 

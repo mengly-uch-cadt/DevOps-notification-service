@@ -17,7 +17,7 @@ router.get('/health', (_req: Request, res: Response) => {
   );
 });
 
-// Public task routes
-router.use('/tasks', setting);
+// Public settings routes
+router.use('/settings', setting);
 
 export default router;

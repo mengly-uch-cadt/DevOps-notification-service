@@ -8,7 +8,14 @@ export class BaseService {
   }
 
   async create<T>(model: any, data: any): Promise<T> {
-    return await model.create({ data });
+    const now = new Date();
+    return await model.create({
+      data: {
+        ...data,
+        created_at: now,
+        updated_at: now,
+      }
+    });
   }
 
   async findById<T>(model: any, id: number): Promise<T | null> {
@@ -28,7 +35,13 @@ export class BaseService {
   }
 
   async update<T>(model: any, id: number, data: any): Promise<T> {
-    return await model.update({ where: { id }, data });
+    return await model.update({
+      where: { id },
+      data: {
+        ...data,
+        updated_at: new Date(),
+      }
+    });
   }
 
   async delete(model: any, id: number): Promise<void> {
