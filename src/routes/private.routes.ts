@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import settingsRoutes from './settings.routes';
-import { authenticateServiceToken } from '../middlewares/auth.serviceToken';
+import { authenticateJWT } from '../middlewares/auth.jwt';
 
 const router = Router();
 
-// Apply service token authentication to all private routes
-router.use(authenticateServiceToken);
+// Apply JWT authentication to all private routes
+router.use(authenticateJWT);
 
 // Private settings routes
 router.use('/settings', settingsRoutes);

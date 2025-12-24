@@ -65,6 +65,7 @@ model users {
   global_id     String          @unique(map: "global_id") @db.VarChar(36)
   user_id       String          @unique(map: "user_id") @db.VarChar(50)
   name          String          @db.VarChar(255)
+  hash          String          @db.VarChar(255)
   created_at    DateTime        @db.DateTime(0)
   updated_at    DateTime        @db.DateTime(0)
   admins        admins[]
