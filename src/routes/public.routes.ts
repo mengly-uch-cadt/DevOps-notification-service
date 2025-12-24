@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { publicTaskRoutes } from './task.routes';
 import { sendSuccess } from '../utils/response';
+import setting from './settings.routes';
 
 const router = Router();
 
 // Health check endpoint
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', (_req: Request, res: Response) => {
   sendSuccess(
     res,
     {
@@ -18,6 +18,6 @@ router.get('/health', (req: Request, res: Response) => {
 });
 
 // Public task routes
-router.use('/tasks', publicTaskRoutes);
+router.use('/tasks', setting);
 
 export default router;

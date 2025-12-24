@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { privateTaskRoutes } from './task.routes';
+import settingsRoutes from './settings.routes';
 import { authenticateServiceToken } from '../middlewares/auth.serviceToken';
 
 const router = Router();
@@ -7,7 +7,7 @@ const router = Router();
 // Apply service token authentication to all private routes
 router.use(authenticateServiceToken);
 
-// Private task routes
-router.use('/tasks', privateTaskRoutes);
+// Private settings routes
+router.use('/settings', settingsRoutes);
 
 export default router;
