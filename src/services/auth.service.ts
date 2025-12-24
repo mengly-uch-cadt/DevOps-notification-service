@@ -31,10 +31,10 @@ export class AuthService extends BaseService {
         return null;
       }
 
-      // Find user by global_id (mapped from external user_id) and hash
+      // Find user by user_id and hash
       const user = await this.prisma.users.findFirst({
         where: {
-          global_id: decoded.user_id,
+          user_id: decoded.user_id,
           hash: decoded.hash,
         },
       });

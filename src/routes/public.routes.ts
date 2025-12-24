@@ -1,7 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { sendSuccess } from '../utils/response';
-import setting from './settings.routes';
-import auth from './auth.routes';
 
 const router = Router();
 
@@ -18,10 +16,7 @@ router.get('/health', (_req: Request, res: Response) => {
   );
 });
 
-// Auth routes (public for login)
-router.use('/auth', auth);
-
 // Public settings routes
-router.use('/settings', setting);
+
 
 export default router;

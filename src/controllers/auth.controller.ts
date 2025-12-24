@@ -5,7 +5,21 @@ import { sendSuccess, sendError } from '../utils/response';
 export class AuthController {
   async ssoLogin(req: Request, res: Response): Promise<void> {
     try {
-      const { token } = req.body;
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader) {
+        sendError(res, 'Authorization header is required', 401);
+        return;
+      }
+
+      const parts = authHeader.split(' ');
+
+      if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        sendError(res, 'Invalid authorization format. Use: Bearer <token>', 401);
+        return;
+      }
+
+      const token = parts[1];
 
       const result = await authService.validateExternalTokenAndGenerateJWT(token);
 
