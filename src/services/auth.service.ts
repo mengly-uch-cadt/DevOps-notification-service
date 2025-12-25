@@ -24,6 +24,11 @@ interface SingleIdResponse {
   } | null;
 }
 
+export interface JWTPayload {
+  user_id: string;
+  [key: string]: any;
+}
+
 export class AuthService {
 
   async ssoLogin(payload: SSOLoginPayload): Promise<{ token: string; user: any }> {
@@ -117,6 +122,16 @@ export class AuthService {
         throw error;
       }
       throw new AppError(`SSO authentication error: ${error.message}`, 500);
+    }
+  }
+
+  verifyToken(token: string): JWTPayload | null {
+    try {
+      const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret';
+      const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
+      return decoded;
+    } catch (error) {
+      return null;
     }
   }
 }
