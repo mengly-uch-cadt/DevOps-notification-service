@@ -13,7 +13,7 @@ const server = app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║   🚀 Notifications System API Server                      ║
+║   🚀 Notifications System API Server                       ║
 ║                                                            ║
 ║   Environment: ${NODE_ENV.padEnd(43)} ║
 ║   Port:        ${String(PORT).padEnd(43)} ║
