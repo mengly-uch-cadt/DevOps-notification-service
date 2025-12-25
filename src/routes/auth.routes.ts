@@ -3,6 +3,6 @@ import { authController } from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/', authController.ssoLogin);
+router.post('/login', authController.ssoLogin);
 
 export default router;

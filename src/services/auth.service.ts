@@ -26,6 +26,107 @@ export interface SingleIdResponse {
 }
 
 export class AuthService extends BaseService {
+  async getSetting(key: string) {
+    return this.prisma.settings.findFirst({
+      where: {
+        slug: key,
+        key: key,
+      },
+    });
+  }
+
+  async validateUserAndGenerateJWT(
+    user_id: string,
+    hash: string
+  ): Promise<{ token: string; user: any } | null> {
+    try {
+      const jwtSecret = process.env.JWT_SECRET;
+
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET not configured');
+      }
+
+      // Get Single ID system settings from database
+      const urlSetting = await this.getSetting('single_id_sys_url');
+
+      if (!urlSetting) {
+        console.error('Single ID system URL not configured');
+        return null;
+      }
+
+      // Call Single ID system to validate user
+      const response = await fetch(`${urlSetting.value}/api/private/users/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id,
+          hash,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Single ID validation failed:', response.status);
+        return null;
+      }
+
+      const sidResponse = await response.json() as SingleIdResponse;
+
+      if (sidResponse.status !== 'success' || !sidResponse.data?.user) {
+        return null;
+      }
+
+      // Find or create user in local database
+      let user = await this.prisma.users.findFirst({
+        where: {
+          user_id: user_id,
+        },
+      });
+
+      if (!user) {
+        // Create user if doesn't exist
+        user = await this.prisma.users.create({
+          data: {
+            global_id: user_id,
+            user_id: user_id,
+            name: sidResponse.data.user.name,
+            hash: hash,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+      }
+
+      // Get JWT TTL from settings
+      const jwtTtlSetting = await this.getSetting('jwt_ttl');
+
+      const ttlMinutes = jwtTtlSetting ? parseInt(jwtTtlSetting.value) : 1440; // Default 24 hours
+
+      // Generate new JWT token
+      const payload: JWTPayload = {
+        user_id: user_id,
+        hash: hash,
+        name: user.name,
+      };
+
+      const token = jwt.sign(payload, jwtSecret, {
+        expiresIn: `${ttlMinutes}m`,
+      });
+
+      return {
+        token,
+        user: {
+          user_id: user_id,
+          name: user.name,
+        },
+      };
+    } catch (error) {
+      console.error('Error validating user:', error);
+      return null;
+    }
+  }
+
   async validateExternalTokenAndGenerateJWT(
     externalToken: string
   ): Promise<{ token: string; user: any } | null> {
