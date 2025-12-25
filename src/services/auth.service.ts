@@ -1,270 +1,122 @@
 import jwt from 'jsonwebtoken';
-import { BaseService } from './base.service';
+import { baseService } from './base.service';
+import { AppError } from '../middlewares/errorHandler';
 
-export interface DecodedExternalToken {
-  user_id: string;
-  hash: string;
+const M = baseService.prisma.settings;
+
+interface SingleIdTokenPayload {
+  user_id?: string;
+  id?: string;
   [key: string]: any;
 }
 
-export interface JWTPayload {
+interface SSOLoginPayload {
   user_id: string;
   hash: string;
-  name: string;
 }
 
-export interface SingleIdResponse {
+interface SingleIdResponse {
   status: string;
   message: string | null;
   data: {
     token: string;
-    user: {
-      user_id: string;
-      name: string;
-    };
+    user: any;
   } | null;
 }
 
-export class AuthService extends BaseService {
-  async getSetting(key: string) {
-    return this.prisma.settings.findFirst({
-      where: {
-        slug: key,
-        key: key,
-      },
-    });
-  }
+export class AuthService {
 
-  async validateUserAndGenerateJWT(
-    user_id: string,
-    hash: string
-  ): Promise<{ token: string; user: any } | null> {
+  async ssoLogin(payload: SSOLoginPayload): Promise<{ token: string; user: any }> {
     try {
-      const jwtSecret = process.env.JWT_SECRET;
+      // Get single_id_sys_url, single_id_sys_origin and single_id_sys_token from settings
+      const sysUrl = await baseService.findOne(M, {
+        slug_key: {
+          slug: 'single_id_sys_url',
+          key: 'single_id_sys_url'
+        }
+      });
 
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET not configured');
+      const sysOrigin = await baseService.findOne(M, {
+        slug_key: {
+          slug: 'single_id_sys_origin',
+          key: 'single_id_sys_origin'
+        }
+      });
+
+      const sysToken = await baseService.findOne(M, {
+        slug_key: {
+          slug: 'single_id_sys_token',
+          key: 'single_id_sys_token'
+        }
+      });
+
+      if (!sysUrl || !sysOrigin || !sysToken) {
+        throw new AppError('SSO configuration not found in settings', 500);
       }
 
-      // Get Single ID system settings from database
-      const urlSetting = await this.getSetting('single_id_sys_url');
+      const singleIdUrl = (sysUrl as any).value;
+      const singleIdOrigin = (sysOrigin as any).value;
+      const singleIdToken = (sysToken as any).value;
 
-      if (!urlSetting) {
-        console.error('Single ID system URL not configured');
-        return null;
-      }
-
-      // Call Single ID system to validate user
-      const response = await fetch(`${urlSetting.value}/api/private/users/validate`, {
+      // Make POST request to single_id system with Basic Auth
+      // Username: single_id_sys_origin value, Password: single_id_sys_token value
+      const response = await fetch(singleIdUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${singleIdOrigin}:${singleIdToken}`).toString('base64')}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          user_id,
-          hash,
-        }),
+          user_id: payload.user_id,
+          hash: payload.hash
+        })
       });
 
       if (!response.ok) {
-        console.error('Single ID validation failed:', response.status);
-        return null;
+        const errorText = await response.text();
+        throw new AppError(`SSO authentication failed: ${errorText}`, 401);
       }
 
-      const sidResponse = await response.json() as SingleIdResponse;
+      const responseData = await response.json() as SingleIdResponse;
 
-      if (sidResponse.status !== 'success' || !sidResponse.data?.user) {
-        return null;
+      // Decode the token from single_id system
+      const receivedToken = responseData.data?.token;
+      if (!receivedToken) {
+        throw new AppError('No token received from SSO system', 401);
       }
 
-      // Find or create user in local database
-      let user = await this.prisma.users.findFirst({
-        where: {
-          user_id: user_id,
+      // Decode the token (without verification since it's from trusted source)
+      const decoded = jwt.decode(receivedToken) as SingleIdTokenPayload;
+
+      if (!decoded) {
+        throw new AppError('Invalid token from SSO system', 401);
+      }
+
+      // Generate new JWT token for notification system
+      const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret';
+
+      // Remove exp, iat, nbf from decoded token to avoid conflicts
+      const { exp, iat, nbf, ...tokenPayload } = decoded;
+
+      const newToken = jwt.sign(
+        {
+          user_id: decoded.user_id || decoded.id,
+          ...tokenPayload
         },
-      });
-
-      if (!user) {
-        // Create user if doesn't exist
-        user = await this.prisma.users.create({
-          data: {
-            global_id: user_id,
-            user_id: user_id,
-            name: sidResponse.data.user.name,
-            hash: hash,
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        });
-      }
-
-      // Get JWT TTL from settings
-      const jwtTtlSetting = await this.getSetting('jwt_ttl');
-
-      const ttlMinutes = jwtTtlSetting ? parseInt(jwtTtlSetting.value) : 1440; // Default 24 hours
-
-      // Generate new JWT token
-      const payload: JWTPayload = {
-        user_id: user_id,
-        hash: hash,
-        name: user.name,
-      };
-
-      const token = jwt.sign(payload, jwtSecret, {
-        expiresIn: `${ttlMinutes}m`,
-      });
+        jwtSecret,
+        { expiresIn: '24h' }
+      );
 
       return {
-        token,
-        user: {
-          user_id: user_id,
-          name: user.name,
-        },
-      };
-    } catch (error) {
-      console.error('Error validating user:', error);
-      return null;
-    }
-  }
-
-  async validateExternalTokenAndGenerateJWT(
-    externalToken: string
-  ): Promise<{ token: string; user: any } | null> {
-    try {
-      const jwtSecret = process.env.JWT_SECRET;
-
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET not configured');
-      }
-
-      // Decode external token (without verification as it's from another system)
-      const decoded = jwt.decode(externalToken) as DecodedExternalToken | null;
-
-      if (!decoded || !decoded.user_id || !decoded.hash) {
-        return null;
-      }
-
-      // Get Single ID system settings from database
-      const [urlSetting, tokenSetting, originSetting] = await Promise.all([
-        this.prisma.settings.findFirst({
-          where: {
-            slug: 'single_id_sys_url',
-            key: 'single_id_sys_url',
-          },
-        }),
-        this.prisma.settings.findFirst({
-          where: {
-            slug: 'single_id_sys_token',
-            key: 'single_id_sys_token',
-          },
-        }),
-        this.prisma.settings.findFirst({
-          where: {
-            slug: 'single_id_sys_origin',
-            key: 'single_id_sys_origin',
-          },
-        }),
-      ]);
-
-      if (!urlSetting || !tokenSetting || !originSetting) {
-        console.error('Single ID system settings not configured');
-        return null;
-      }
-
-      // Call Single ID system to validate user
-      // Basic Auth: username = origin (current service URL), password = token
-      const basicAuth = Buffer.from(`${originSetting.value}:${tokenSetting.value}`).toString('base64');
-
-      const response = await fetch(`${urlSetting.value}/api/private/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${basicAuth}`,
-        },
-        body: JSON.stringify({
-          user_id: decoded.user_id,
-          hash: decoded.hash,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('Single ID validation failed:', response.status);
-        return null;
-      }
-
-      const sidResponse = await response.json() as SingleIdResponse;
-
-      if (sidResponse.status !== 'success' || !sidResponse.data?.user) {
-        return null;
-      }
-
-      // Find or create user in local database
-      let user = await this.prisma.users.findFirst({
-        where: {
-          user_id: decoded.user_id,
-        },
-      });
-
-      if (!user) {
-        // Create user if doesn't exist
-        user = await this.prisma.users.create({
-          data: {
-            global_id: decoded.user_id,
-            user_id: decoded.user_id,
-            name: sidResponse.data.user.name,
-            hash: decoded.hash,
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        });
-      }
-
-      // Get JWT TTL from settings
-      const jwtTtlSetting = await this.prisma.settings.findFirst({
-        where: {
-          slug: 'jwt_ttl',
-          key: 'jwt_ttl',
-        },
-      });
-
-      const ttlMinutes = jwtTtlSetting ? parseInt(jwtTtlSetting.value) : 1440; // Default 24 hours
-
-      // Generate new JWT token
-      const payload: JWTPayload = {
-        user_id: decoded.user_id,
-        hash: decoded.hash,
-        name: user.name,
+        token: newToken,
+        user: decoded
       };
 
-      const token = jwt.sign(payload, jwtSecret, {
-        expiresIn: `${ttlMinutes}m`,
-      });
-
-      return {
-        token,
-        user: {
-          user_id: decoded.user_id,
-          name: user.name,
-        },
-      };
-    } catch (error) {
-      console.error('Error validating external token:', error);
-      return null;
-    }
-  }
-
-  verifyToken(token: string): JWTPayload | null {
-    try {
-      const jwtSecret = process.env.JWT_SECRET;
-
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET not configured');
+    } catch (error: any) {
+      if (error instanceof AppError) {
+        throw error;
       }
-
-      const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
-      return decoded;
-    } catch (error) {
-      return null;
+      throw new AppError(`SSO authentication error: ${error.message}`, 500);
     }
   }
 }

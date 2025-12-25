@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { authController } from '../controllers/auth.controller';
+import { ssoLogin } from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/login', authController.ssoLogin);
+// SSO Login endpoint
+router.post('/sso/login', ssoLogin);
 
 export default router;
